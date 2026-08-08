@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
+import {
+  Space_Grotesk,
+  Inter,
+  JetBrains_Mono,
+} from "next/font/google";
+
 import { AuthProvider } from "@/lib/auth";
+import { Navbar } from "@/components/Navbar";
+
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -37,7 +44,10 @@ export default function RootLayout({
       <body
         className={`${spaceGrotesk.variable} ${inter.variable} ${jetbrainsMono.variable} font-body antialiased`}
       >
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <Navbar />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

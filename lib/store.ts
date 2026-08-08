@@ -105,13 +105,24 @@ export function getDrives(): Drive[] {
   return read(DRIVES_KEY, SEED_DRIVES);
 }
 
+function generateId(): string {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  // Fallback for environments without crypto.randomUUID
+  return `xxxx-xxxx-xxxx-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`.replace(/x/g, () =>
+    Math.floor(Math.random() * 16).toString(16)
+  );
+}
+
 export function createDrive(
   drive: Omit<Drive, "id" | "candidateCount" | "avgScore" | "createdAt">
 ): Drive {
   const drives = getDrives();
   const newDrive: Drive = {
     ...drive,
-    id: crypto.randomUUID(),
+    id: generateId(),
     candidateCount: 0,
     avgScore: null,
     createdAt: new Date().toISOString().slice(0, 10),

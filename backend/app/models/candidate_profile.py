@@ -121,13 +121,22 @@ class CandidateProfile:
     # ---------------------------------------------------
 
     def get_completed_titles(self) -> List[str]:
-        return [topic["title"] for topic in self.completed_topics]
+        return [
+            topic["title"]
+            for topic in self.completed_topics
+        ]
 
     def get_failed_titles(self) -> List[str]:
-        return [topic["title"] for topic in self.failed_topics]
+        return [
+            topic["title"]
+            for topic in self.failed_topics
+        ]
 
     def get_skipped_titles(self) -> List[str]:
-        return [topic["title"] for topic in self.skipped_topics]
+        return [
+            topic["title"]
+            for topic in self.skipped_topics
+        ]
 
     # ---------------------------------------------------
     # Summary
@@ -142,21 +151,18 @@ class CandidateProfile:
                 "role": self.role,
                 "experience": self.experience,
                 "education": self.education,
-                "status": self.status
+                "status": self.status,
             },
-
             "missions": {
                 "completed": self.completed_topics,
                 "failed": self.failed_topics,
-                "skipped": self.skipped_topics
+                "skipped": self.skipped_topics,
             },
-
             "signals": self.signals,
-
             "statistics": {
                 "completed": self.total_completed,
                 "failed": self.total_failed,
                 "skipped": self.total_skipped,
-                "strength_score": self.strength_score
-            }
+                "strength_score": self.strength_score,
+            },
         }

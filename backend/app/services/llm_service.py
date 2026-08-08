@@ -2,26 +2,26 @@ import os
 
 from pathlib import Path
 
-from dotenv import load_dotenv
 from openai import OpenAI
 
-
-load_dotenv()
+from app.config import MODEL, API_KEY, BASE_URL
 
 
 class LLMService:
 
     def __init__(self):
 
+        if not API_KEY:
+            raise RuntimeError(
+                "GROQ_API_KEY is not configured in .env"
+            )
+
         self.client = OpenAI(
-            api_key=os.getenv("GROQ_API_KEY"),
-            base_url="https://api.groq.com/openai/v1"
+            api_key=API_KEY,
+            base_url=BASE_URL
         )
 
-        self.model = os.getenv(
-            "MODEL",
-            "llama-3.3-70b-versatile"
-        )
+        self.model = MODEL
 
     def load_prompt(self, filename: str):
 

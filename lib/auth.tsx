@@ -1,31 +1,21 @@
 "use client";
 
-/**
- * ─────────────────────────────────────────────────────────────────────────
- * MOCK AUTH LAYER
- * ─────────────────────────────────────────────────────────────────────────
- * This is a placeholder so the frontend has something real to run against
- * while the backend is being planned. It persists a fake "session" to
- * localStorage — nothing is sent over the network, nothing is secure.
- *
- * When Supabase is wired up, replace the three functions below
- * (signUp / signIn / signOut) with calls to `supabase.auth.*`, and swap
- * the localStorage read in the initial useEffect for
- * `supabase.auth.getSession()` + `onAuthStateChange`. Every component that
- * calls `useAuth()` will keep working unchanged.
- * ─────────────────────────────────────────────────────────────────────────
- */
-
 import {
   createContext,
   useContext,
   useEffect,
   useState,
-  ReactNode,
+  type ReactNode,
 } from "react";
-import type { User, UserRole } from "./types";
 
-const STORAGE_KEY = "hireloop_mock_session";
+import type {
+  User,
+  UserRole,
+} from "./types";
+
+import { createClient } from "./supabase/client";
+
+const supabase = createClient();
 
 interface SignUpInput {
   name: string;
@@ -39,99 +29,391 @@ interface SignUpInput {
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  signUp: (input: SignUpInput) => Promise<{ error: string | null }>;
+
+  signUp: (
+    input: SignUpInput
+  ) => Promise<{
+    error: string | null;
+  }>;
+
   signIn: (
     email: string,
     password: string
-  ) => Promise<{ error: string | null }>;
+  ) => Promise<{
+    error: string | null;
+  }>;
+
   signOut: () => void;
 }
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+const AuthContext =
+  createContext<
+    AuthContextValue | undefined
+  >(undefined);
 
-function readStoredUsers(): Record<string, User & { password: string }> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem("hireloop_mock_users");
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
+export function AuthProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const [user, setUser] =
+    useState<User | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  // --------------------------------------------------
+  // LOAD PROFILE
+  // --------------------------------------------------
+
+  async function loadProfile(
+    supabaseUser: {
+      id: string;
+      email?: string;
+      user_metadata?: {
+        full_name?: string;
+        role?: UserRole;
+        company_name?: string;
+        branch?: string;
+      };
+    }
+  ) {
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", supabaseUser.id)
+      .single();
+
+    /*
+     * IMPORTANT:
+     *
+     * Profile data is preferred.
+     * Supabase auth metadata is used as
+     * a fallback.
+     *
+     * This prevents the dashboard from
+     * getting stuck when role/branch was
+     * not written correctly into profiles.
+     */
+
+    const metadata =
+      supabaseUser.user_metadata ?? {};
+
+    if (error || !data) {
+      console.warn(
+        "Could not load profile. Using auth metadata.",
+        error
+      );
+
+      const fallbackRole =
+        metadata.role;
+
+      if (!fallbackRole) {
+        setUser(null);
+        return;
+      }
+
+      const fallbackUser: User = {
+        id: supabaseUser.id,
+        email:
+          supabaseUser.email ?? "",
+        name:
+          metadata.full_name ??
+          "User",
+        role: fallbackRole,
+        companyName:
+          metadata.company_name ||
+          undefined,
+        branch:
+          metadata.branch ||
+          undefined,
+      };
+
+      setUser(fallbackUser);
+      return;
+    }
+
+    /*
+     * Profile exists.
+     *
+     * Use profile values first,
+     * metadata as fallback.
+     */
+
+    const role =
+      (data.role as UserRole | null) ??
+      metadata.role;
+
+    if (!role) {
+      console.error(
+        "User role is missing from both profile and auth metadata."
+      );
+
+      setUser(null);
+      return;
+    }
+
+    const profile: User = {
+      id: data.id,
+      email:
+        data.email ??
+        supabaseUser.email ??
+        "",
+
+      name:
+        data.full_name ??
+        metadata.full_name ??
+        "User",
+
+      role,
+
+      companyName:
+        data.company_name ??
+        metadata.company_name ??
+        undefined,
+
+      branch:
+        data.branch ??
+        metadata.branch ??
+        undefined,
+    };
+
+    console.log(
+      "HireLoop authenticated user:",
+      profile
+    );
+
+    setUser(profile);
   }
-}
 
-function writeStoredUsers(users: Record<string, User & { password: string }>) {
-  window.localStorage.setItem("hireloop_mock_users", JSON.stringify(users));
-}
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // --------------------------------------------------
+  // LOAD CURRENT SESSION
+  // --------------------------------------------------
 
   useEffect(() => {
-    // Reading localStorage must happen client-side only (SSR has no
-    // window), so this genuinely can't be lazy initial state — it has to
-    // run after mount.
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (raw) setUser(JSON.parse(raw));
-    } catch {
-      // ignore corrupted session
+    let mounted = true;
+
+    async function loadUser() {
+      try {
+        const {
+          data: {
+            user: supabaseUser,
+          },
+        } =
+          await supabase.auth.getUser();
+
+        if (!mounted) {
+          return;
+        }
+
+        if (!supabaseUser) {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        await loadProfile(
+          supabaseUser
+        );
+
+        if (mounted) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error(
+          "Failed to load authentication:",
+          error
+        );
+
+        if (mounted) {
+          setUser(null);
+          setLoading(false);
+        }
+      }
     }
-    setLoading(false);
+
+    loadUser();
+
+    // ------------------------------------------------
+    // LISTEN FOR AUTH CHANGES
+    // ------------------------------------------------
+
+    const {
+      data: {
+        subscription,
+      },
+    } =
+      supabase.auth.onAuthStateChange(
+        async (
+          _event,
+          session
+        ) => {
+          if (!mounted) {
+            return;
+          }
+
+          if (!session?.user) {
+            setUser(null);
+            setLoading(false);
+            return;
+          }
+
+          await loadProfile(
+            session.user
+          );
+
+          if (mounted) {
+            setLoading(false);
+          }
+        }
+      );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  async function signUp(input: SignUpInput) {
-    const users = readStoredUsers();
-    if (users[input.email]) {
-      return { error: "An account with this email already exists." };
+  // --------------------------------------------------
+  // SIGN UP
+  // --------------------------------------------------
+
+  async function signUp(
+    input: SignUpInput
+  ) {
+    const {
+      data,
+      error,
+    } =
+      await supabase.auth.signUp({
+        email: input.email,
+        password: input.password,
+
+        options: {
+          data: {
+            full_name: input.name,
+            role: input.role,
+            company_name:
+              input.companyName ?? "",
+            branch:
+              input.branch ?? "",
+          },
+        },
+      });
+
+    if (error) {
+      return {
+        error: error.message,
+      };
     }
-    const newUser: User & { password: string } = {
-      id: crypto.randomUUID(),
-      email: input.email,
-      name: input.name,
-      role: input.role,
-      companyName: input.companyName,
-      branch: input.branch,
-      password: input.password,
+
+    if (!data.user) {
+      return {
+        error:
+          "Unable to create account.",
+      };
+    }
+
+    /*
+     * Supabase stores role/name/etc.
+     * in auth.user_metadata.
+     *
+     * If email confirmation is disabled,
+     * the user will already have a session.
+     */
+
+    if (data.session) {
+      await loadProfile(
+        data.user
+      );
+    }
+
+    return {
+      error: null,
     };
-    users[input.email] = newUser;
-    writeStoredUsers(users);
-
-    const { password: _password, ...publicUser } = newUser;
-    void _password;
-    setUser(publicUser);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(publicUser));
-    return { error: null };
   }
 
-  async function signIn(email: string, password: string) {
-    const users = readStoredUsers();
-    const match = users[email];
-    if (!match || match.password !== password) {
-      return { error: "Incorrect email or password." };
+  // --------------------------------------------------
+  // SIGN IN
+  // --------------------------------------------------
+
+  async function signIn(
+    email: string,
+    password: string
+  ) {
+    const {
+      data,
+      error,
+    } =
+      await supabase.auth.signInWithPassword(
+        {
+          email,
+          password,
+        }
+      );
+
+    if (error) {
+      return {
+        error: error.message,
+      };
     }
-    const { password: _password, ...publicUser } = match;
-    void _password;
-    setUser(publicUser);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(publicUser));
-    return { error: null };
+
+    if (!data.user) {
+      return {
+        error:
+          "Unable to sign in.",
+      };
+    }
+
+    await loadProfile(
+      data.user
+    );
+
+    return {
+      error: null,
+    };
   }
 
-  function signOut() {
+  // --------------------------------------------------
+  // SIGN OUT
+  // --------------------------------------------------
+
+  async function signOut() {
+    await supabase.auth.signOut();
     setUser(null);
-    window.localStorage.removeItem(STORAGE_KEY);
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        signUp,
+        signIn,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
+// --------------------------------------------------
+// USE AUTH
+// --------------------------------------------------
+
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
+  const context =
+    useContext(AuthContext);
+
+  if (!context) {
+    throw new Error(
+      "useAuth must be used within AuthProvider"
+    );
+  }
+
+  return context;
 }

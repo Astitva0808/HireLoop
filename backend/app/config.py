@@ -3,6 +3,7 @@ import os
 
 load_dotenv()
 
-MODEL = os.getenv("MODEL")
-API_KEY = os.getenv("API_KEY")
-BASE_URL = os.getenv("BASE_URL")
+# LLM Configuration
+MODEL = os.getenv("MODEL", "llama-3.3-70b-versatile")
+API_KEY = os.getenv("GROQ_API_KEY")
+BASE_URL = os.getenv("BASE_URL", "https://api.groq.com/openai/v1")

@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  /* Color system */
+  --color-ink: #16213e;
+  --color-ink-soft: #2c3958;
+  --color-teal: #0f766e;
+  --color-teal-dark: #0b5b55;
+  --color-teal-light: #e6f4f1;
+  --color-paper: #f7f7f5;
+  --color-surface: #ffffff;
+  --color-amber: #b4690e;
+  --color-amber-light: #fbf0e4;
+  --color-signal: #dc2626;
+  --color-signal-light: #fdecec;
+  --color-line: #e4e4e1;
+  --color-muted: #63666f;
+
+  /* Fonts */
+  --font-display: var(--font-space-grotesk), ui-sans-serif, sans-serif;
+  --font-body: var(--font-inter), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/* Visible keyboard focus everywhere */
+:focus-visible {
+  outline: 2px solid var(--color-teal);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Subtle grain-free noise removed on purpose — keep surfaces flat & calm */

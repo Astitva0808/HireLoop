@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 
 class DriveCreate(BaseModel):
-    company_id: str
+    company_id: Optional[str] = None
     title: str
     role: str
     description: str = ""

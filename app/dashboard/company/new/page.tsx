@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, FormEvent } from "react";
+import type { ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,

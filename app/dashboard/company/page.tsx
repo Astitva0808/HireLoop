@@ -18,8 +18,9 @@ import {
 } from "lucide-react";
 
 import { AuthGuard } from "@/components/AuthGuard";
+import { Button } from "@/components/Button";
 import { useAuth } from "@/lib/auth";
-import { getMyDrives, getCompanyAnalytics, getAllCandidates, getMyCompany } from "@/lib/api";
+import { getMyDrives, getCompanyAnalytics, getAllCandidates, getMyCompany, createCompany } from "@/lib/api";
 
 function CompanyDashboardContent() {
   const { user } = useAuth();
@@ -29,6 +30,37 @@ function CompanyDashboardContent() {
   const [candidates, setCandidates] = useState<{ id: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [creatingCompany, setCreatingCompany] = useState(false);
+
+  async function handleCreateCompany() {
+    if (!user) return;
+    setCreatingCompany(true);
+    setError(null);
+    try {
+      await createCompany({
+        owner_id: user.id,
+        name: user.companyName || user.name || "My Company",
+        email: user.email || "",
+      });
+      // Refresh the dashboard
+      const company = await getMyCompany();
+      if (company) {
+        const [drivesData, analyticsData, candidatesData] = await Promise.all([
+          getMyDrives(),
+          getCompanyAnalytics(),
+          getAllCandidates(),
+        ]);
+        setDrives(drivesData.map((d: { id: string; status: string }) => ({ id: d.id, status: d.status })));
+        setAnalytics(analyticsData as { total_interviews: number; selected_candidates: number; total_applications: number; pending_applications: number; accepted_applications: number; completed_interviews: number });
+        setCandidates(candidatesData as { id: string }[]);
+        setError(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create company");
+    } finally {
+      setCreatingCompany(false);
+    }
+  }
 
   useEffect(() => {
     async function fetchData() {
@@ -42,7 +74,7 @@ function CompanyDashboardContent() {
         ]);
         
         if (!company) {
-          setError("Company profile not found. Please complete your company setup.");
+          setError("Company profile not found. Please complete your company setup or contact support if this persists.");
           setDrives([]);
           setAnalytics(null);
           setCandidates([]);
@@ -304,6 +336,17 @@ function CompanyDashboardContent() {
               ) : error ? (
                 <div className="col-span-4 rounded-xl border border-dashed border-line bg-surface px-6 py-10 text-center">
                   <p className="text-sm font-medium text-ink">{error}</p>
+                  <p className="mt-2 text-xs text-muted">
+                    Your company profile is missing. Click below to create it.
+                  </p>
+                  <Button
+                    variant="primary"
+                    className="mt-4"
+                    onClick={handleCreateCompany}
+                    disabled={creatingCompany}
+                  >
+                    {creatingCompany ? "Creating company..." : "Create company profile"}
+                  </Button>
                 </div>
               ) : (
                 <>

@@ -49,10 +49,14 @@ async function apiRequest<T>(
 
   if (!response.ok) {
     const errorText = await response.text();
-
-    throw new Error(
-      errorText || `Request failed with status ${response.status}`
-    );
+    let errorMessage = errorText || `Request failed with status ${response.status}`;
+    
+    // Provide more helpful error messages for common company access issues
+    if (response.status === 403 && errorText.includes("Only company accounts can access")) {
+      errorMessage = "Your company profile is not set up. Please complete your company setup in the dashboard.";
+    }
+    
+    throw new Error(errorMessage);
   }
 
   if (response.status === 204) {
@@ -225,12 +229,14 @@ export interface Drive {
   description: string;
   requiredSkills: string[];
   questionSource: "auto" | "custom";
+  questionMode?: "theoretical" | "applied";
   status: "draft" | "open" | "closed";
   candidateCount: number;
   avgScore: number | null;
   createdAt: string;
   created_at?: string;
   updated_at?: string;
+  uploadedQuestions?: Array<{ question: string; skill_tag: string }>;
 }
 
 export interface DriveCreate {
@@ -239,10 +245,12 @@ export interface DriveCreate {
   description?: string;
   requiredSkills?: string[];
   questionSource?: "auto" | "custom";
+  questionMode?: "theoretical" | "applied";
   status?: "draft" | "open" | "closed";
   experience_level?: string;
   location?: string;
   application_deadline?: string;
+  uploadedQuestions?: Array<{ question: string; skill_tag: string }>;
 }
 
 export interface DriveUpdate {
@@ -263,6 +271,10 @@ export async function getOpenDrives(): Promise<Drive[]> {
 
 export async function getMyDrives(): Promise<Drive[]> {
   return apiRequest<Drive[]>("/api/drives/my");
+}
+
+export async function getDrive(driveId: string): Promise<Drive> {
+  return apiRequest<Drive>(`/api/drives/${driveId}`);
 }
 
 export async function createDrive(

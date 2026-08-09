@@ -22,6 +22,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { useAuth } from "@/lib/auth";
+import { getDrive } from "@/lib/api";
+import { useProctor } from "@/lib/useProctor";
 import {
   sendInterviewAnswer,
   startInterview,
@@ -68,14 +70,19 @@ export function InterviewContent() {
 
   const [error, setError] = useState("");
 
-  const [suspended, setSuspended] =
-    useState(false);
+  const [driveStatus, setDriveStatus] = useState<string | null>(null);
+  const [driveError, setDriveError] = useState<string | null>(null);
 
   const conversationRef =
     useRef<HTMLDivElement>(null);
 
   const textareaRef =
     useRef<HTMLTextAreaElement>(null);
+
+  const { violationCount, warningVisible, isSuspended, dismissWarning } = useProctor({
+    sessionId,
+    enabled: started && !completed,
+  });
 
   /* -------------------------------------------------- */
   /* Load candidate                                    */
@@ -104,92 +111,6 @@ export function InterviewContent() {
         user.branch ?? "Computer Science",
     });
   }, [user, authLoading]);
-
-  /* -------------------------------------------------- */
-  /* Auto scroll conversation                          */
-  /* -------------------------------------------------- */
-
-  useEffect(() => {
-    const container =
-      conversationRef.current;
-
-    if (!container) {
-      return;
-    }
-
-    container.scrollTo({
-      top: container.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [messages, loading]);
-
-  /* -------------------------------------------------- */
-  /* Focus textarea after question                     */
-  /* -------------------------------------------------- */
-
-  useEffect(() => {
-    if (
-      started &&
-      !loading &&
-      !completed &&
-      !suspended
-    ) {
-      textareaRef.current?.focus();
-    }
-  }, [
-    started,
-    loading,
-    completed,
-    suspended,
-    currentQuestion,
-  ]);
-
-  /* -------------------------------------------------- */
-  /* Tab-switch / leave detection                      */
-  /* -------------------------------------------------- */
-
-  useEffect(() => {
-    if (!started || completed) {
-      return;
-    }
-
-    function handleVisibilityChange() {
-      if (document.visibilityState === "hidden") {
-        setSuspended(true);
-      }
-    }
-
-    function handleBeforeUnload(
-      event: BeforeUnloadEvent
-    ) {
-      if (started && !completed) {
-        event.preventDefault();
-        event.returnValue = "";
-      }
-    }
-
-    document.addEventListener(
-      "visibilitychange",
-      handleVisibilityChange
-    );
-
-    window.addEventListener(
-      "beforeunload",
-      handleBeforeUnload
-    );
-
-    return () => {
-      document.removeEventListener(
-        "visibilitychange",
-        handleVisibilityChange
-      );
-
-      window.removeEventListener(
-        "beforeunload",
-        handleBeforeUnload
-      );
-    };
-  }, [started, completed]);
 
   /* -------------------------------------------------- */
   /* Start interview                                   */
@@ -313,15 +234,6 @@ export function InterviewContent() {
     } finally {
       setLoading(false);
     }
-  }
-
-  /* -------------------------------------------------- */
-  /* Resume interview after suspension                 */
-  /* -------------------------------------------------- */
-
-  function handleResumeInterview() {
-    setSuspended(false);
-    setError("");
   }
 
   /* -------------------------------------------------- */
@@ -466,7 +378,7 @@ export function InterviewContent() {
         {/* Suspended overlay */}
 
         <AnimatePresence>
-          {suspended && started && !completed && (
+          {isSuspended && started && !completed && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -479,8 +391,8 @@ export function InterviewContent() {
                 exit={{ scale: 0.9, y: 20 }}
                 className="mx-auto w-full max-w-md rounded-2xl border border-line bg-surface p-8 text-center shadow-2xl"
               >
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-light">
-                  <EyeOff className="h-6 w-6 text-amber" />
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-signal-light">
+                  <EyeOff className="h-6 w-6 text-signal" />
                 </div>
 
                 <h2 className="mt-5 font-display text-xl font-semibold text-ink">
@@ -488,17 +400,16 @@ export function InterviewContent() {
                 </h2>
 
                 <p className="mt-2 text-sm leading-relaxed text-muted">
-                  You switched away from the interview tab.
-                  Your session has been paused. Please return
-                  to this tab to resume.
+                  Multiple tab switches detected. This session has been
+                  suspended and cannot be resumed.
                 </p>
 
                 <Button
                   variant="primary"
                   className="mt-6"
-                  onClick={handleResumeInterview}
+                  onClick={() => router.push("/dashboard/student")}
                 >
-                  Resume interview
+                  Go to dashboard
                 </Button>
               </motion.div>
             </motion.div>

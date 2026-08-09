@@ -117,9 +117,10 @@ function StudentDashboardContent() {
           companyName: "—",
           studentId: interview.candidate_id,
           studentName: `Candidate ${interview.candidate_id.slice(0, 8)}`,
-          status: ["not_started", "in_progress", "completed"].includes(interview.status)
-            ? (interview.status as "not_started" | "in_progress" | "completed")
+          status: ["not_started", "in_progress", "completed", "suspended"].includes(interview.status)
+            ? (interview.status as "not_started" | "in_progress" | "completed" | "suspended")
             : "not_started",
+          violationCount: 0,
           overallScore: interview.overall_score ?? null,
         }));
 

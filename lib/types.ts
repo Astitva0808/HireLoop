@@ -18,18 +18,20 @@ export type Difficulty = "easy" | "medium" | "hard";
 export interface Drive {
   id: string;
   companyId: string;
-  companyName: string;
+  companyName?: string;
   title: string;
   role: string;
   requiredSkills: string[];
   questionSource: QuestionSource;
+  questionMode?: "theoretical" | "applied";
   status: DriveStatus;
   candidateCount: number;
   avgScore: number | null;
   createdAt: string;
+  uploadedQuestions?: Array<{ question: string; skill_tag: string }>;
 }
 
-export type SessionStatus = "not_started" | "in_progress" | "completed";
+export type SessionStatus = "not_started" | "in_progress" | "completed" | "suspended";
 
 export interface InterviewSession {
   id: string;
@@ -39,6 +41,7 @@ export interface InterviewSession {
   studentId: string;
   studentName: string;
   status: SessionStatus;
+  violationCount: number;
   overallScore: number | null;
   skillBreakdown?: Record<string, number>;
   completedAt?: string | null;

@@ -1,15 +1,7 @@
 "use client";
 
 /**
- * ─────────────────────────────────────────────────────────────────────────
- * MOCK DATA STORE
- * ─────────────────────────────────────────────────────────────────────────
- * Stands in for the real API layer. Everything here reads/writes
- * localStorage and is seeded with sample drives so the dashboards have
- * something to render. Replace each function's body with a fetch()/Supabase
- * call when the backend exists — the function signatures are the contract
- * the UI already depends on, so pages shouldn't need to change.
- * ─────────────────────────────────────────────────────────────────────────
+ * Mock data store.
  */
 
 import type { Drive, InterviewSession } from "./types";
@@ -22,7 +14,7 @@ const SEED_DRIVES: Drive[] = [
     id: "drive-1",
     companyId: "seed-company",
     companyName: "Northwind Systems",
-    title: "SDE Intern — Backend",
+    title: "SDE Intern � Backend",
     role: "Software Development Engineer Intern",
     requiredSkills: ["DSA", "DBMS", "System Design", "Node.js"],
     questionSource: "auto",
@@ -48,7 +40,7 @@ const SEED_DRIVES: Drive[] = [
     id: "drive-3",
     companyId: "seed-company",
     companyName: "Northwind Systems",
-    title: "Frontend Developer — Batch 2026",
+    title: "Frontend Developer � Batch 2026",
     role: "Frontend Engineer",
     requiredSkills: ["React", "CSS", "JavaScript"],
     questionSource: "auto",
@@ -63,11 +55,12 @@ const SEED_SESSIONS: InterviewSession[] = [
   {
     id: "session-1",
     driveId: "drive-1",
-    driveTitle: "SDE Intern — Backend",
+    driveTitle: "SDE Intern � Backend",
     companyName: "Northwind Systems",
     studentId: "seed-student",
     studentName: "You",
     status: "completed",
+    violationCount: 0,
     overallScore: 7.6,
     skillBreakdown: { DSA: 8.1, DBMS: 6.9, "System Design": 7.2 },
     completedAt: "2026-08-04",
@@ -80,6 +73,7 @@ const SEED_SESSIONS: InterviewSession[] = [
     studentId: "seed-student",
     studentName: "You",
     status: "not_started",
+    violationCount: 0,
     overallScore: null,
     completedAt: null,
   },
@@ -109,8 +103,6 @@ function generateId(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
   }
-
-  // Fallback for environments without crypto.randomUUID
   return `xxxx-xxxx-xxxx-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`.replace(/x/g, () =>
     Math.floor(Math.random() * 16).toString(16)
   );

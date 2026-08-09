@@ -21,7 +21,7 @@ import { AuthGuard } from "@/components/AuthGuard";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { useAuth } from "@/lib/auth";
-import { getMyDrives } from "@/lib/api";
+import { getMyDrives, updateDrive } from "@/lib/api";
 import type {
   Drive,
   InterviewSession,
@@ -46,6 +46,8 @@ function DriveDetailsContent() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchDrive() {
@@ -98,6 +100,35 @@ function DriveDetailsContent() {
     (session) =>
       session.status === "not_started"
   ).length;
+
+
+  async function handlePublishDrive() {
+    if (!drive) return;
+    setUpdatingStatus(true);
+    setStatusError(null);
+    try {
+      const updated = await updateDrive(drive.id, { status: "open" });
+      setDrive(updated);
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : "Failed to publish drive");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }
+
+  async function handleCloseDrive() {
+    if (!drive) return;
+    setUpdatingStatus(true);
+    setStatusError(null);
+    try {
+      const updated = await updateDrive(drive.id, { status: "closed" });
+      setDrive(updated);
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : "Failed to close drive");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -254,24 +285,43 @@ function DriveDetailsContent() {
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
-              {drive.status === "draft" && (
-                <Link
-                  href="/dashboard/company/new"
-                >
-                  <Button variant="ghost">
-                    <FileEdit className="h-4 w-4" />
-                    Edit
-                  </Button>
-                </Link>
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              {statusError && (
+                <span className="text-xs text-signal">{statusError}</span>
               )}
+              <div className="flex items-center gap-2">
+                {drive.status === "draft" && (
+                  <>
+                    <Button
+                      variant="primary"
+                      onClick={handlePublishDrive}
+                      disabled={updatingStatus}
+                    >
+                      {updatingStatus ? "Publishing..." : "Publish"}
+                    </Button>
+                    <Link href="/dashboard/company/new">
+                      <Button variant="ghost" disabled={updatingStatus}>
+                        <FileEdit className="h-4 w-4" />
+                        Edit
+                      </Button>
+                    </Link>
+                  </>
+                )}
 
-              {drive.status === "open" && (
-                <Button variant="primary">
-                  <Plus className="h-4 w-4" />
-                  Invite candidates
-                </Button>
-              )}
+                {drive.status === "open" && (
+                  <Button
+                    variant="ghost"
+                    onClick={handleCloseDrive}
+                    disabled={updatingStatus}
+                  >
+                    {updatingStatus ? "Closing..." : "Close drive"}
+                  </Button>
+                )}
+
+                {drive.status === "closed" && (
+                  <span className="text-xs text-muted">Closed for applications</span>
+                )}
+              </div>
             </div>
           </div>
         </motion.section>
@@ -556,7 +606,7 @@ function CandidateRow({
     SessionStatus,
     {
       label: string;
-      tone: "teal" | "amber" | "ink";
+      tone: "teal" | "amber" | "ink" | "signal";
       icon: React.ElementType;
     }
   > = {
@@ -573,6 +623,11 @@ function CandidateRow({
     not_started: {
       label: "Not started",
       tone: "ink",
+      icon: Clock3,
+    },
+    suspended: {
+      label: "Suspended",
+      tone: "signal",
       icon: Clock3,
     },
   };
